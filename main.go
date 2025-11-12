@@ -1,0 +1,22 @@
+package main
+
+import (
+	"log"
+	"net/http"
+)
+
+func main() {
+	mux := http.NewServeMux()
+	serv := http.Server{
+		Addr:    ":8080",
+		Handler: mux,
+	}
+
+	mux.Handle("/", http.FileServer(http.Dir(".")))
+
+	err := serv.ListenAndServe()
+	if err != nil {
+		log.Fatal("Server failed to start:", err)
+	}
+
+}
