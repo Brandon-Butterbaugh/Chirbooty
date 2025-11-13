@@ -36,6 +36,7 @@ func main() {
 	mux.HandleFunc("GET /api/healthz", health)
 	mux.HandleFunc("GET /admin/metrics", cfg.Metrics)
 	mux.HandleFunc("POST /admin/reset", cfg.Reset)
+	mux.HandleFunc("POST /api/validate_chirp", validate)
 
 	log.Printf("Serving files from %s on port: %s\n", filepathRoot, port)
 	log.Fatal(serv.ListenAndServe())
