@@ -18,8 +18,8 @@ func HashPassword(password string) (string, error) {
 func CheckPasswordHash(password, hash string) (bool, error) {
 	match, err := argon2id.ComparePasswordAndHash(password, hash)
 	if err != nil {
-		log.Fatalf("Error comparing password and hash: %v", err)
-		return match, err
+		//log.Fatalf("Error comparing password and hash: %v", err)
+		return false, err
 	}
 	return match, nil
 }
