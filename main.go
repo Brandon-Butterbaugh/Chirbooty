@@ -65,6 +65,8 @@ func main() {
 	mux.HandleFunc("POST /admin/reset", cfg.Reset)
 	mux.HandleFunc("POST /api/users", cfg.newUser)
 	mux.HandleFunc("POST /api/chirps", cfg.newChirp)
+	mux.HandleFunc("GET /api/chirps", cfg.getChirps)
+	mux.HandleFunc("GET /api/chirps/{chirpID}", cfg.getChirp)
 
 	log.Printf("Serving files from %s on port: %s\n", filepathRoot, port)
 	log.Fatal(serv.ListenAndServe())
