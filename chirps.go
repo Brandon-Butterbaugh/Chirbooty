@@ -6,6 +6,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/Brandon-Butterbaugh/Chirbooty.git/internal/auth"
 	"github.com/Brandon-Butterbaugh/Chirbooty.git/internal/database"
 	"github.com/google/uuid"
 )
@@ -66,8 +67,7 @@ func (cfg *apiConfig) getChirp(w http.ResponseWriter, r *http.Request) {
 
 func (cfg *apiConfig) newChirp(w http.ResponseWriter, r *http.Request) {
 	type parameters struct {
-		Body   string    `json:"body"`
-		UserID uuid.UUID `json:"user_id"`
+		Body string `json:"body"`
 	}
 
 	decoder := json.NewDecoder(r.Body)
@@ -78,15 +78,26 @@ func (cfg *apiConfig) newChirp(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	token, err := auth.GetBearerToken(r.Header)
+	if err != nil {
+		respondWithError(w, http.StatusUnauthorized, "Authorization header failed", err)
+		return
+	}
+	id, err := auth.ValidateJWT(token, cfg.secret)
+	if err != nil {
+		respondWithError(w, http.StatusUnauthorized, "JWT validation failed", err)
+		return
+	}
+
 	if len(params.Body) > 140 {
-		respondWithError(w, http.StatusBadRequest, "Chirp is too long", err)
+		respondWithError(w, http.StatusBadRequest, "Chirp is too long", nil)
 		return
 	}
 	cleanBody := cleanProfanity(params.Body)
 
 	chirp, err := cfg.database.CreateChirp(r.Context(), database.CreateChirpParams{
 		Body:   cleanBody,
-		UserID: params.UserID,
+		UserID: id,
 	},
 	)
 	if err != nil {

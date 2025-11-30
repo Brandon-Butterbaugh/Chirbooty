@@ -16,6 +16,7 @@ type User struct {
 	UpdatedAt time.Time `json:"updated_at"`
 	Email     string    `json:"email"`
 	Password  string    `json:"-"`
+	Token     string    `json:"token"`
 }
 
 func (cfg *apiConfig) newUser(w http.ResponseWriter, r *http.Request) {
@@ -58,8 +59,9 @@ func (cfg *apiConfig) newUser(w http.ResponseWriter, r *http.Request) {
 
 func (cfg *apiConfig) login(w http.ResponseWriter, r *http.Request) {
 	type parameters struct {
-		Password string `json:"password"`
-		Email    string `json:"email"`
+		Password         string `json:"password"`
+		Email            string `json:"email"`
+		ExpiresInSeconds *int   `json:"expires_in_seconds"`
 	}
 	decoder := json.NewDecoder(r.Body)
 	params := parameters{}
@@ -69,20 +71,35 @@ func (cfg *apiConfig) login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	var expiresIn int
+	if params.ExpiresInSeconds == nil {
+		expiresIn = 3600
+	} else if *params.ExpiresInSeconds > 3600 {
+		expiresIn = 3600
+	} else {
+		expiresIn = *params.ExpiresInSeconds
+	}
+
 	user, err := cfg.database.GetUser(r.Context(), params.Email)
 	if err != nil {
 		respondWithError(w, http.StatusUnauthorized, "Couldn't find user", err)
 		return
 	}
 
-	auth, err := auth.CheckPasswordHash(params.Password, user.HashedPassword)
+	authorization, err := auth.CheckPasswordHash(params.Password, user.HashedPassword)
 	if err != nil {
 		respondWithError(w, http.StatusUnauthorized, "Error checking password", err)
 		return
 	}
 
-	if !auth {
+	if !authorization {
 		respondWithError(w, http.StatusUnauthorized, "incorrect password", err)
+		return
+	}
+
+	token, err := auth.MakeJWT(user.ID, cfg.secret, time.Duration(expiresIn)*time.Second)
+	if err != nil {
+		respondWithError(w, http.StatusInternalServerError, "Error making JWT", err)
 		return
 	}
 
@@ -91,6 +108,7 @@ func (cfg *apiConfig) login(w http.ResponseWriter, r *http.Request) {
 		CreatedAt: user.CreatedAt,
 		UpdatedAt: user.UpdatedAt,
 		Email:     user.Email,
+		Token:     token,
 	}
 
 	respondWithJSON(w, http.StatusOK, respBody)
