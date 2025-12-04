@@ -116,6 +116,50 @@ func (cfg *apiConfig) newChirp(w http.ResponseWriter, r *http.Request) {
 	respondWithJSON(w, http.StatusCreated, respBody)
 }
 
+func (cfg *apiConfig) deleteChirp(w http.ResponseWriter, r *http.Request) {
+	// Authenticate user
+	token, err := auth.GetBearerToken(r.Header)
+	if err != nil {
+		respondWithError(w, http.StatusUnauthorized, "Authorization header failed", err)
+		return
+	}
+	id, err := auth.ValidateJWT(token, cfg.secret)
+	if err != nil {
+		respondWithError(w, http.StatusUnauthorized, "JWT validation failed", err)
+		return
+	}
+
+	// Get the chirp
+	chirpIDString := r.PathValue("chirpID")
+	chirpID, err := uuid.Parse(chirpIDString)
+	if err != nil {
+		respondWithError(w, http.StatusNotFound, "Invalid uuid", err)
+		return
+	}
+
+	chirp, err := cfg.database.GetChirp(r.Context(), chirpID)
+	if err != nil {
+		respondWithError(w, http.StatusNotFound, "Couldn't get chirp", err)
+		return
+	}
+
+	// Check user is chirp auther
+	if chirp.UserID != id {
+		respondWithError(w, http.StatusForbidden, "Not the chirp author", err)
+		return
+	}
+
+	// Delete the chirp
+	err = cfg.database.DeleteChirp(r.Context(), chirp.ID)
+	if err != nil {
+		respondWithError(w, http.StatusInternalServerError, "Couldn't delete chirp", err)
+		return
+	}
+
+	// Return status code
+	w.WriteHeader(http.StatusNoContent)
+}
+
 func cleanProfanity(str string) string {
 	temp := str
 	temp = strings.ToLower(temp)
