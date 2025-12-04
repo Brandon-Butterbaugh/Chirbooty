@@ -35,3 +35,9 @@ SELECT refresh_tokens.*
 FROM refresh_tokens
 JOIN users ON refresh_tokens.user_id = users.id
 WHERE users.id = $1;
+
+-- name: UpdateUserRed :one
+UPDATE users
+SET updated_at = NOW(), is_chirpy_red = TRUE
+WHERE id = $1
+RETURNING *;

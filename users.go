@@ -18,6 +18,7 @@ type User struct {
 	Password     string    `json:"-"`
 	Token        string    `json:"token"`
 	RefreshToken string    `json:"refresh_token"`
+	IsChirpyRed  bool      `json:"is_chirpy_red"`
 }
 
 func (cfg *apiConfig) newUser(w http.ResponseWriter, r *http.Request) {
@@ -49,10 +50,11 @@ func (cfg *apiConfig) newUser(w http.ResponseWriter, r *http.Request) {
 	}
 
 	respBody := User{
-		ID:        user.ID,
-		CreatedAt: user.CreatedAt,
-		UpdatedAt: user.UpdatedAt,
-		Email:     user.Email,
+		ID:          user.ID,
+		CreatedAt:   user.CreatedAt,
+		UpdatedAt:   user.UpdatedAt,
+		Email:       user.Email,
+		IsChirpyRed: user.IsChirpyRed.Bool,
 	}
 
 	respondWithJSON(w, http.StatusCreated, respBody)
@@ -76,6 +78,10 @@ func (cfg *apiConfig) updateUser(w http.ResponseWriter, r *http.Request) {
 
 	// Get user with id
 	user, err := cfg.database.GetUserFromID(r.Context(), id)
+	if err != nil {
+		respondWithError(w, http.StatusInternalServerError, "Couldn't get user", err)
+		return
+	}
 
 	// Read request body
 	type parameters struct {
@@ -136,6 +142,7 @@ func (cfg *apiConfig) updateUser(w http.ResponseWriter, r *http.Request) {
 		Email:        user.Email,
 		Token:        token,
 		RefreshToken: refresh.Token,
+		IsChirpyRed:  user.IsChirpyRed.Bool,
 	}
 
 	respondWithJSON(w, http.StatusOK, respBody)
@@ -202,6 +209,7 @@ func (cfg *apiConfig) login(w http.ResponseWriter, r *http.Request) {
 		Email:        user.Email,
 		Token:        token,
 		RefreshToken: refresh.Token,
+		IsChirpyRed:  user.IsChirpyRed.Bool,
 	}
 
 	respondWithJSON(w, http.StatusOK, respBody)
@@ -250,5 +258,54 @@ func (cfg *apiConfig) revoke(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	w.WriteHeader(http.StatusNoContent)
+}
+
+func (cfg *apiConfig) upgrade(w http.ResponseWriter, r *http.Request) {
+
+	// Define data and parameters
+	type data struct {
+		UserID string `json:"user_id"`
+	}
+	type parameters struct {
+		Event string `json:"event"`
+		Data  data   `json:"data"`
+	}
+
+	// Unmarshal
+	decoder := json.NewDecoder(r.Body)
+	params := parameters{}
+	err := decoder.Decode(&params)
+	if err != nil {
+		respondWithError(w, http.StatusInternalServerError, "Couldn't decode parameters", err)
+		return
+	}
+
+	// Check event
+	if params.Event != "user.upgraded" {
+		respondWithError(w, http.StatusNoContent, "Wrong event", err)
+		return
+	}
+
+	// Get user
+	id, err := uuid.Parse(params.Data.UserID)
+	if err != nil {
+		respondWithError(w, http.StatusNotFound, "Invalid uuid", err)
+		return
+	}
+	user, err := cfg.database.GetUserFromID(r.Context(), id)
+	if err != nil {
+		respondWithError(w, http.StatusNotFound, "Couldn't find user", err)
+		return
+	}
+
+	// Update user to red
+	_, err = cfg.database.UpdateUserRed(r.Context(), user.ID)
+	if err != nil {
+		respondWithError(w, http.StatusInternalServerError, "Couldn't upgrade to red", err)
+		return
+	}
+
+	// Return status code
 	w.WriteHeader(http.StatusNoContent)
 }
