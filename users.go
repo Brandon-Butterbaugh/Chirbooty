@@ -54,7 +54,7 @@ func (cfg *apiConfig) newUser(w http.ResponseWriter, r *http.Request) {
 		CreatedAt:   user.CreatedAt,
 		UpdatedAt:   user.UpdatedAt,
 		Email:       user.Email,
-		IsChirpyRed: user.IsChirpyRed.Bool,
+		IsChirpyRed: user.IsChirpyRed,
 	}
 
 	respondWithJSON(w, http.StatusCreated, respBody)
@@ -142,7 +142,7 @@ func (cfg *apiConfig) updateUser(w http.ResponseWriter, r *http.Request) {
 		Email:        user.Email,
 		Token:        token,
 		RefreshToken: refresh.Token,
-		IsChirpyRed:  user.IsChirpyRed.Bool,
+		IsChirpyRed:  user.IsChirpyRed,
 	}
 
 	respondWithJSON(w, http.StatusOK, respBody)
@@ -209,7 +209,7 @@ func (cfg *apiConfig) login(w http.ResponseWriter, r *http.Request) {
 		Email:        user.Email,
 		Token:        token,
 		RefreshToken: refresh.Token,
-		IsChirpyRed:  user.IsChirpyRed.Bool,
+		IsChirpyRed:  user.IsChirpyRed,
 	}
 
 	respondWithJSON(w, http.StatusOK, respBody)

@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"net/http"
+	"sort"
 	"strings"
 	"time"
 
@@ -21,10 +22,34 @@ type Chirp struct {
 
 func (cfg *apiConfig) getChirps(w http.ResponseWriter, r *http.Request) {
 	var respBody []Chirp
-	chirps, err := cfg.database.GetChirps(r.Context())
-	if err != nil {
-		respondWithError(w, http.StatusInternalServerError, "Couldn't get chirps", err)
-		return
+	authorID := r.URL.Query().Get("author_id")
+	sortType := r.URL.Query().Get("sort")
+	var chirps []database.Chirp
+	var err error
+
+	if authorID != "" {
+		id, err := uuid.Parse(authorID)
+		if err != nil {
+			respondWithError(w, http.StatusNotFound, "Invalid uuid", err)
+			return
+		}
+		chirps, err = cfg.database.GetAuthorChirps(r.Context(), id)
+		if err != nil {
+			respondWithError(w, http.StatusInternalServerError, "Couldn't get chirps", err)
+			return
+		}
+	} else {
+		chirps, err = cfg.database.GetChirps(r.Context())
+		if err != nil {
+			respondWithError(w, http.StatusInternalServerError, "Couldn't get chirps", err)
+			return
+		}
+	}
+
+	if sortType == "desc" {
+		sort.Slice(chirps,
+			func(i, j int) bool { return chirps[i].CreatedAt.After(chirps[j].CreatedAt) },
+		)
 	}
 
 	for _, chirp := range chirps {
@@ -143,7 +168,7 @@ func (cfg *apiConfig) deleteChirp(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Check user is chirp auther
+	// Check user is chirp author
 	if chirp.UserID != id {
 		respondWithError(w, http.StatusForbidden, "Not the chirp author", err)
 		return
