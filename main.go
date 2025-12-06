@@ -18,6 +18,7 @@ type apiConfig struct {
 	database       *database.Queries
 	platform       string
 	secret         string
+	polkaKey       string
 }
 
 func (cfg *apiConfig) middlewareMetricsInc(next http.Handler) http.Handler {
@@ -50,6 +51,11 @@ func main() {
 		log.Fatal("SECRET must be set")
 	}
 
+	pKey := os.Getenv("POLKA_KEY")
+	if pKey == "" {
+		log.Fatal("POLKA_KEY must be set")
+	}
+
 	const filepathRoot = "."
 	const port = "8080"
 	mux := http.NewServeMux()
@@ -63,6 +69,7 @@ func main() {
 		database:       dbQueries,
 		platform:       platform,
 		secret:         secret,
+		polkaKey:       pKey,
 	}
 	handler := http.StripPrefix("/app", http.FileServer(http.Dir(filepathRoot)))
 

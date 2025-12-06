@@ -287,6 +287,13 @@ func (cfg *apiConfig) upgrade(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Check APIkey
+	apiKey, err := auth.GetAPIKey(r.Header)
+	if apiKey != cfg.polkaKey {
+		respondWithError(w, http.StatusUnauthorized, "Wrong APIkey", err)
+		return
+	}
+
 	// Get user
 	id, err := uuid.Parse(params.Data.UserID)
 	if err != nil {
